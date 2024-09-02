@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "usage/usage.hpp"
+#include <usage-static.hpp>
 
 class UsageTest : public ::testing::Test
 {

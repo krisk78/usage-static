@@ -17,7 +17,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC ${${PROJECT_NAME}_LINK_PUBLIC_LIBS}
 target_link_libraries(${PROJECT_NAME} INTERFACE ${${PROJECT_NAME}_LINK_INTERFACE_LIBS})
 
 target_include_directories(${PROJECT_NAME} 
-    INTERFACE 
+    PUBLIC 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
