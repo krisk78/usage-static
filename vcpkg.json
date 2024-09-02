@@ -1,0 +1,28 @@
+{
+  "name": "usage-static",
+  "version": "1.0.0-beta",
+  "description": "Static library that provides a framework to manage command line arguments",
+  "homepage": "https://github.com/krisk78/usage-static",
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    "requirements",
+    "conflicts",
+    "str-utils-static"
+  ],
+  "features": {
+    "tests": {
+      "description": "Building tests",
+      "dependencies": [
+        "gtest"
+      ]
+    }
+  }
+}

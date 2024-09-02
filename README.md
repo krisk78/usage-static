@@ -1,0 +1,1 @@
+# usage-static static library
