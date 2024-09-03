@@ -60,14 +60,14 @@ std::ostream& Argument::print(std::ostream& os, const std::string& indent) const
 
 Named_Arg::Named_Arg(const Named_Arg& argument) : Argument(argument)
 {
-    switch_char = argument.switch_char;
+    shortcut_char = argument.shortcut_char;
     m_type = argument.m_type;
     m_default_value = argument.m_default_value;
 }
 
 Named_Arg::Named_Arg(const Named_Arg* argument) : Argument(argument)
 {
-    switch_char = argument->switch_char;
+    shortcut_char = argument->shortcut_char;
     m_type = argument->m_type;
     m_default_value = argument->m_default_value;
 }
@@ -76,7 +76,7 @@ std::ostream& Named_Arg::print(std::ostream& os, const std::string& indent) cons
 {
     os << indent << "<named>" << std::endl;
     Argument::print(os, indent + "\t");
-    os << indent << "\t<switch_char>" << switch_char << "</switch_char>" << std::endl;
+    os << indent << "\t<shortcut_char>" << shortcut_char << "</shortcut_char>" << std::endl;
     os << indent << "\t<type>" << (int)m_type << "</type>" << std::endl;
     os << indent << "\t<default_value>" << m_default_value << "</default_value>" << std::endl;
     os << indent << "</named>" << std::endl;
@@ -438,11 +438,12 @@ void Usage::set_syntax(const std::string& syntax)
 
 std::string Usage::set_parameters(int argc, char* argv[])
 {
-    static const char* SYNTAX_ERROR{ "Error found in command line argument number %i: '%s' - see %s /? for help." };
-    static const char* TYPE_MISMATCH{ "Argument '%s' passed as '%s' while expected type is '%s' - see %s /? for help." };
-    static const char* UNKNOW_ARGUMENT{ "Unknown argument '/%s' - see %s /? for help." };
-    static const char* REQUIRED_ARGUMENT{ "Missing required argument '%s' - see %s /? for help." };
-    static const char* CONFLICT{ "Arguments '%s' and '%s' can't be used together - see %s /? for help." };
+    static const std::string switch_str{ switch_char };
+    static const std::string SYNTAX_ERROR{ "Error found in command line argument number %i: '%s' - see %s " + switch_str + help_arg + " for help." };
+    static const std::string TYPE_MISMATCH{ "Argument '%s' passed as '%s' while expected type is '%s' - see %s " + switch_str + help_arg + " for help." };
+    static const std::string UNKNOW_ARGUMENT{ "Unknown argument '" + switch_str + "%s' - see %s " + switch_str + help_arg + " for help." };
+    static const std::string REQUIRED_ARGUMENT{ "Missing required argument '%s' - see %s " + switch_str + help_arg + " for help." };
+    static const std::string CONFLICT{ "Arguments '%s' and '%s' can't be used together - see %s " + switch_str + help_arg + " for help." };
     if (argc == 0)
         return "No argument to evaluate.";
     std::vector<bool> set_args(m_argsorder.size(), false);
@@ -453,12 +454,12 @@ std::string Usage::set_parameters(int argc, char* argv[])
         std::string p = argv[i];
         if (p.empty())
             continue;
-        bool named{ p[0] == '/' };
+        bool named{ p[0] == switch_char };
         if (named)
             p.erase(0, 1);
         if (p.empty())
-            return get_message(SYNTAX_ERROR, i, argv[i], program_name.c_str());
-        if (p == "?")
+            return get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str(), switch_char, help_arg);
+        if (p == help_arg)
             // Help requested
             return "?";
         auto quote = p.find('\"');
@@ -489,7 +490,7 @@ std::string Usage::set_parameters(int argc, char* argv[])
                     }
                 }
                 if (!found)
-                    return get_message(SYNTAX_ERROR, i, argv[i], program_name.c_str());
+                    return get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
             }
             continue;
         }
@@ -501,7 +502,7 @@ std::string Usage::set_parameters(int argc, char* argv[])
             // TODO format value inside quotes
         }
         if (p.empty())
-            return get_message(SYNTAX_ERROR, i, argv[i], program_name.c_str());
+            return get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
         Argument_Type type_p{ Argument_Type::simple };
         auto colon = p.find(':');
         if (colon != std::string::npos)
@@ -519,7 +520,7 @@ std::string Usage::set_parameters(int argc, char* argv[])
                 type_p = Argument_Type::boolean;
                 p.erase(p.length() - 1);
                 if (!value.empty())
-                    return get_message(SYNTAX_ERROR, i, argv[i], program_name.c_str());
+                    return get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
                 value = "false";
                 if (sgn == '+')
                     value = "true";
@@ -528,24 +529,24 @@ std::string Usage::set_parameters(int argc, char* argv[])
             {
                 // simple argument
                 if (!value.empty())
-                    return get_message(SYNTAX_ERROR, i, argv[i], program_name.c_str());
+                    return get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
                 value = "true";
             }
         }
         if (p.empty())
-            return get_message(SYNTAX_ERROR, i, argv[i], program_name.c_str());
+            return get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
         bool found{ false };
         for (size_t i = 0; i < m_argsorder.size(); i++)
         {
             std::string name2{};
             if (m_argsorder[i]->named() && !set_args[i])
             {
-                name2 = dynamic_cast<Named_Arg*>(m_argsorder[i])->switch_char;
+                name2 = dynamic_cast<Named_Arg*>(m_argsorder[i])->shortcut_char;
                 if (p == m_argsorder[i]->name() || p == name2)
                 {
                     Argument_Type type_a = dynamic_cast<Named_Arg*>(m_argsorder[i])->type();
                     if (type_p != type_a)
-                        return get_message(TYPE_MISMATCH, m_argsorder[i]->name().c_str(),
+                        return get_message(TYPE_MISMATCH.c_str(), m_argsorder[i]->name().c_str(),
                             AType_toStr(type_p).c_str(), AType_toStr(type_a).c_str(), program_name.c_str());
                     m_argsorder[i]->value.push_back(value);
                     set_args[i] = true;
@@ -555,7 +556,7 @@ std::string Usage::set_parameters(int argc, char* argv[])
             }
         }
         if (!found)
-            return get_message(UNKNOW_ARGUMENT, p.c_str(), program_name.c_str());
+            return get_message(UNKNOW_ARGUMENT.c_str(), p.c_str(), program_name.c_str());
     }
     for (size_t i = 0; i < m_argsorder.size(); i++)
     {
@@ -578,7 +579,7 @@ std::string Usage::set_parameters(int argc, char* argv[])
                 }
             }
             if (!con_defined)
-                return get_message(REQUIRED_ARGUMENT, m_argsorder[i]->name().c_str(), program_name.c_str());
+                return get_message(REQUIRED_ARGUMENT.c_str(), m_argsorder[i]->name().c_str(), program_name.c_str());
         }
         if (!set_args[i] && m_argsorder[i]->named())
         {
@@ -620,9 +621,9 @@ std::string Usage::set_parameters(int argc, char* argv[])
                 if (i != j)
                 {
                     if (set_args[j] && m_conflicts.in_conflict(m_argsorder[i], m_argsorder[j]))
-                        return get_message(CONFLICT, m_argsorder[i]->name().c_str(), m_argsorder[j]->name().c_str(), program_name.c_str());
+                        return get_message(CONFLICT.c_str(), m_argsorder[i]->name().c_str(), m_argsorder[j]->name().c_str(), program_name.c_str());
                     if (!set_args[j] && m_requirements.requires(m_argsorder[i], m_argsorder[j]))
-                        return get_message(REQUIRED_ARGUMENT, m_argsorder[j]->name().c_str(), program_name.c_str());
+                        return get_message(REQUIRED_ARGUMENT.c_str(), m_argsorder[j]->name().c_str(), program_name.c_str());
                 }
             }
         }
@@ -793,7 +794,7 @@ std::ostream& operator<<(std::ostream& os, Usage& us)
     while (itr != us.m_argsorder.end())
     {
         auto lgth = (*itr)->name().length();
-        if ((*itr)->named() && dynamic_cast<Named_Arg*>(*itr)->switch_char != ' ')
+        if ((*itr)->named() && dynamic_cast<Named_Arg*>(*itr)->shortcut_char != ' ')
             lgth += 3;
         if (lgth > max_length)
             max_length = lgth;
@@ -806,9 +807,9 @@ std::ostream& operator<<(std::ostream& os, Usage& us)
     {
         os << "    " << (*itr)->name();
         auto lgth = (*itr)->name().length();
-        if ((*itr)->named() && dynamic_cast<Named_Arg*>(*itr)->switch_char != ' ')
+        if ((*itr)->named() && dynamic_cast<Named_Arg*>(*itr)->shortcut_char != ' ')
         {
-            os << ", " << dynamic_cast<Named_Arg*>(*itr)->switch_char;
+            os << ", " << dynamic_cast<Named_Arg*>(*itr)->shortcut_char;
             lgth += 3;
         }
         if (filler.length() > lgth)

@@ -1,7 +1,5 @@
 #pragma once
 
-#define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
-
 /*! \file usage.hpp
 *	\brief Implements the classes Argument_Type, Argument, Named_Arg, Unnamed_Arg and Usage.
 *   \author Christophe COUAILLET
@@ -74,7 +72,7 @@ protected:
 /*! \brief Class for named arguments.
 
     A named argument is an argument for which the value is preceded with a name.
-    In the current implementation, a named argument always starts with '/'.
+    In the current implementation of Usage class, a named argument always starts with '/' under Windows or '-' under Linux (switch char).
     A shortcut of one character length can be set for named arguments.
 */
 class Named_Arg : public Argument
@@ -85,7 +83,7 @@ public:
 
     virtual bool named() const noexcept override { return true; }
     /*! \brief Sets or gets the shortcut character. */
-    char switch_char{ ' ' };
+    char shortcut_char{ ' ' };
     /*! \brief Returns the type of the argument. */
     Argument_Type type() noexcept { return m_type; }
     /*! \brief Returns the value applied when the argument is not used. */
@@ -172,6 +170,20 @@ private:
     bool m_syntax_valid{ false };
 
 public:
+
+    /*! \brief Gets the switch char used to start a named arg. */
+#ifdef _WIN32
+    const char switch_char{ '/' };
+#elif __unix__
+    const char switch_char{ '-' };
+#endif
+    /*! \brief Gets the help argument. */
+#ifdef _WIN32
+    const std::string help_arg{ "?" };
+#elif __unix__
+    const std::string help_arg{ "h" };
+#endif
+
     /*! \brief Sets or gets the name of the program. */
     std::string program_name{};
     /*! \brief Sets or gets the brief description of the program that is displayed before the syntax and arguments explanation. */
