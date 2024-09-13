@@ -1,6 +1,6 @@
 {
   "name": "usage-static",
-  "version": "1.0.0-beta",
+  "version": "1.1.0",
   "description": "Static library that provides a framework to manage command line arguments",
   "homepage": "https://github.com/krisk78/usage-static",
   "license": "MIT",

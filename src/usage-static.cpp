@@ -1,4 +1,4 @@
-/*! \file usage.cpp
+/*! \file usage-static.cpp
     \brief Defines the functions for the static library.
     \author Christophe COUAILLET
 */
@@ -11,18 +11,18 @@
 #include <str-utils-static.hpp>
 #include <usage-static.hpp>
 
-std::string AType_toStr(Argument_Type arg)
+static std::string AType_toStr(Usage::Argument_Type arg)
 {
     static const std::array<const std::string, 3> AType_Label{ "string", "boolean", "simple" };
     return AType_Label[(int)arg];
 }
 
-Argument::Argument(const std::string& name)
+Usage::Argument::Argument(const std::string& name)
 {
     m_name = name;
 }
 
-Argument::Argument(const Argument& argument)
+Usage::Argument::Argument(const Argument& argument)
 {
     m_name = argument.m_name;
     m_required = argument.m_required;
@@ -31,7 +31,7 @@ Argument::Argument(const Argument& argument)
         value.push_back(val);
 }
 
-Argument::Argument(const Argument* argument)
+Usage::Argument::Argument(const Argument* argument)
 {
     m_name = argument->m_name;
     m_required = argument->m_required;
@@ -40,17 +40,20 @@ Argument::Argument(const Argument* argument)
         value.push_back(val);
 }
 
-std::string Argument::name() const noexcept
+std::string Usage::Argument::name() const noexcept
 {
     return m_name;
 }
 
-std::ostream& operator<<(std::ostream& os, const Argument& arg)
-{   // used to return the xml definition of the Argument
-    return arg.print(os);
+namespace Usage
+{
+    std::ostream& operator<<(std::ostream& os, const Argument& arg)
+    {   // used to return the xml definition of the Argument
+        return arg.print(os);
+    }
 }
 
-std::ostream& Argument::print(std::ostream& os, const std::string& indent) const
+std::ostream& Usage::Argument::print(std::ostream& os, const std::string& indent) const
 {
     os << indent << "<name>" << m_name << "</name>" << std::endl;
     os << indent << "<helpstring>" << helpstring << "</helpstring>" << std::endl;
@@ -58,21 +61,21 @@ std::ostream& Argument::print(std::ostream& os, const std::string& indent) const
     return os;
 }
 
-Named_Arg::Named_Arg(const Named_Arg& argument) : Argument(argument)
+Usage::Named_Arg::Named_Arg(const Named_Arg& argument) : Argument(argument)
 {
     shortcut_char = argument.shortcut_char;
     m_type = argument.m_type;
     m_default_value = argument.m_default_value;
 }
 
-Named_Arg::Named_Arg(const Named_Arg* argument) : Argument(argument)
+Usage::Named_Arg::Named_Arg(const Named_Arg* argument) : Argument(argument)
 {
     shortcut_char = argument->shortcut_char;
     m_type = argument->m_type;
     m_default_value = argument->m_default_value;
 }
 
-std::ostream& Named_Arg::print(std::ostream& os, const std::string& indent) const
+std::ostream& Usage::Named_Arg::print(std::ostream& os, const std::string& indent) const
 {
     os << indent << "<named>" << std::endl;
     Argument::print(os, indent + "\t");
@@ -83,7 +86,7 @@ std::ostream& Named_Arg::print(std::ostream& os, const std::string& indent) cons
     return os;
 }
 
-std::ostream& Unnamed_Arg::print(std::ostream& os, const std::string& indent) const
+std::ostream& Usage::Unnamed_Arg::print(std::ostream& os, const std::string& indent) const
 {
     os << indent << "<unnamed>" << std::endl;
     Argument::print(os, indent + "\t");
@@ -92,37 +95,37 @@ std::ostream& Unnamed_Arg::print(std::ostream& os, const std::string& indent) co
     return os;
 }
 
-void Named_Arg::set_required(const bool required)
+void Usage::Named_Arg::set_required(const bool required)
 {
     assert((!required || required && m_default_value.empty()) && "An argument can't be required if it defines a default value.");
     m_required = required;
 }
 
-void Named_Arg::set_type(Argument_Type type)
+void Usage::Named_Arg::set_type(Argument_Type type)
 {
     assert((type != Argument_Type::simple || type == Argument_Type::simple && m_default_value.empty()) && "Type simple can't be set for arguments with a default value.");
     m_type = type;
 }
 
-void Named_Arg::set_default_value(const std::string& default_value)
+void Usage::Named_Arg::set_default_value(const std::string& default_value)
 {
     assert((default_value.empty() || !default_value.empty() && !m_required) && "A default value can't be set for a required argument.");
     assert((default_value.empty() || !default_value.empty() && m_type != Argument_Type::simple) && "A default value can't be set for an argument of type simple.");
     m_default_value = default_value;
 }
 
-Usage::Usage(const std::string& prog_name)
+Usage::Usage::Usage(const std::string& prog_name)
 {
     program_name = prog_name;
 }
 
-Usage::~Usage()
+Usage::Usage::~Usage()
 {
     for (auto arg : m_arguments)
         delete arg.second;      // args are dynamically created when added
 }
 
-void Usage::add_Argument(const Argument& argument)
+void Usage::Usage::add_Argument(const Argument& argument)
 {
     auto itr = m_arguments.find(argument.name());
     assert(itr == m_arguments.end() && "Argument already exists.");
@@ -136,7 +139,7 @@ void Usage::add_Argument(const Argument& argument)
     m_syntax_valid = false;
 }
 
-void Usage::remove_Argument(const std::string& name)
+void Usage::Usage::remove_Argument(const std::string& name)
 {
     auto itr = m_arguments.find(name);
     assert(itr != m_arguments.end() && "Unknown argument name.");
@@ -153,7 +156,7 @@ void Usage::remove_Argument(const std::string& name)
     m_syntax_valid = false;
 }
 
-void Usage::remove_all() noexcept
+void Usage::Usage::remove_all() noexcept
 {
     // we must free memory for each dynamically created arg
     while (!m_arguments.empty())
@@ -161,7 +164,7 @@ void Usage::remove_all() noexcept
     m_syntax_valid = false;
 }
 
-void Usage::clear() noexcept
+void Usage::Usage::clear() noexcept
 {
     remove_all();
     program_name.clear();
@@ -170,7 +173,7 @@ void Usage::clear() noexcept
     m_syntax_valid = false;
 }
 
-Argument* Usage::get_Argument(const std::string& name)
+Usage::Argument* Usage::Usage::get_Argument(const std::string& name)
 {
     auto arg_itr = m_arguments.find(name);
     if (arg_itr != m_arguments.end())
@@ -178,7 +181,7 @@ Argument* Usage::get_Argument(const std::string& name)
     return NULL;
 }
 
-std::vector<Argument*> Usage::get_Arguments()
+std::vector<Usage::Argument*> Usage::Usage::get_Arguments()
 {
     std::vector<Argument*> result{};
     for (auto arg : m_argsorder)
@@ -186,7 +189,7 @@ std::vector<Argument*> Usage::get_Arguments()
     return result;
 }
 
-std::unordered_map<std::string, std::vector<std::string>> Usage::get_values() const
+std::unordered_map<std::string, std::vector<std::string>> Usage::Usage::get_values() const
 {
     std::unordered_map<std::string, std::vector<std::string>> result{};
     for (auto arg : m_argsorder)
@@ -194,14 +197,14 @@ std::unordered_map<std::string, std::vector<std::string>> Usage::get_values() co
     return result;
 }
 
-std::vector<std::string> Usage::get_values(const std::string& name) const
+std::vector<std::string> Usage::Usage::get_values(const std::string& name) const
 {
     auto itr = m_arguments.find(name);
     assert(itr != m_arguments.end() && "Unknown argument name.");
     return (*itr).second->value;
 }
 
-void Usage::add_requirement(const std::string& dependent, const std::string& requirement)
+void Usage::Usage::add_requirement(const std::string& dependent, const std::string& requirement)
 {
     assert((!dependent.empty() && !requirement.empty()) && "Requirements cannot be created without arguments name.");
     assert((dependent != requirement) && "An argument cannot require itself.");
@@ -218,7 +221,7 @@ void Usage::add_requirement(const std::string& dependent, const std::string& req
     m_syntax_valid = false;
 }
 
-void Usage::remove_requirement(const std::string& dependent, const std::string& requirement)
+void Usage::Usage::remove_requirement(const std::string& dependent, const std::string& requirement)
 {
     auto itr1 = m_arguments.find(dependent);
     auto itr2 = m_arguments.find(requirement);
@@ -228,7 +231,7 @@ void Usage::remove_requirement(const std::string& dependent, const std::string& 
     m_syntax_valid = false;
 }
 
-void Usage::remove_requirements(const std::string& argument)
+void Usage::Usage::remove_requirements(const std::string& argument)
 {
     auto itr = m_arguments.find(argument);
     assert(itr != m_arguments.end() && "Unknown argument name.");
@@ -237,13 +240,13 @@ void Usage::remove_requirements(const std::string& argument)
     m_syntax_valid = false;
 }
 
-void Usage::clear_requirements() noexcept
+void Usage::Usage::clear_requirements() noexcept
 {
     m_requirements.clear();
     m_syntax_valid = false;
 }
 
-bool Usage::requirement_exists(const std::string& dependent, const std::string& requirement) const
+bool Usage::Usage::requirement_exists(const std::string& dependent, const std::string& requirement) const
 {
     auto const itr1 = m_arguments.find(dependent);
     auto const itr2 = m_arguments.find(requirement);
@@ -251,21 +254,21 @@ bool Usage::requirement_exists(const std::string& dependent, const std::string& 
     return m_requirements.exists((*itr1).second, (*itr2).second);
 }
 
-bool Usage::has_requirements(const std::string& dependent) const
+bool Usage::Usage::has_requirements(const std::string& dependent) const
 {
     auto itr = m_arguments.find(dependent);
     assert((itr != m_arguments.end()) && "Unknown argument name.");
     return m_requirements.has_requirements((*itr).second);
 }
 
-bool Usage::has_dependents(const std::string& requirement) const
+bool Usage::Usage::has_dependents(const std::string& requirement) const
 {
     auto itr = m_arguments.find(requirement);
     assert((itr != m_arguments.end()) && "Unknown argument name.");
     return m_requirements.has_dependents((*itr).second);
 }
 
-Argument* Usage::get_requirement(const std::string& dependent, const std::string& requirement)
+Usage::Argument* Usage::Usage::get_requirement(const std::string& dependent, const std::string& requirement)
 {
     auto itr1 = m_arguments.find(dependent);
     auto itr2 = m_arguments.find(requirement);
@@ -274,7 +277,7 @@ Argument* Usage::get_requirement(const std::string& dependent, const std::string
     return (*itr2).second;
 }
 
-std::vector<std::string> Usage::get_requirements(const std::string& argument) const
+std::vector<std::string> Usage::Usage::get_requirements(const std::string& argument) const
 {
     auto itr = m_arguments.find(argument);
     assert(itr != m_arguments.end() && "Unknown argument name.");
@@ -285,7 +288,7 @@ std::vector<std::string> Usage::get_requirements(const std::string& argument) co
     return result;
 }
 
-std::vector<std::string> Usage::get_dependents(const std::string& argument) const
+std::vector<std::string> Usage::Usage::get_dependents(const std::string& argument) const
 {
     auto itr = m_arguments.find(argument);
     assert(itr != m_arguments.end() && "Unknown argument name.");
@@ -296,7 +299,7 @@ std::vector<std::string> Usage::get_dependents(const std::string& argument) cons
     return result;
 }
 
-std::unordered_multimap<std::string, std::string> Usage::get_requirements() const
+std::unordered_multimap<std::string, std::string> Usage::Usage::get_requirements() const
 {
     std::unordered_multimap<std::string, std::string> result{};
     auto requirements = m_requirements.get();
@@ -309,7 +312,7 @@ std::unordered_multimap<std::string, std::string> Usage::get_requirements() cons
     return result;
 }
 
-void Usage::set_requirements(const std::unordered_multimap<std::string, std::string>& requirements)
+void Usage::Usage::set_requirements(const std::unordered_multimap<std::string, std::string>& requirements)
 {
     auto itr = requirements.begin();
     while (itr != requirements.end())
@@ -320,7 +323,7 @@ void Usage::set_requirements(const std::unordered_multimap<std::string, std::str
     m_syntax_valid = false;
 }
 
-void Usage::add_conflict(const std::string& arg1, const std::string& arg2)
+void Usage::Usage::add_conflict(const std::string& arg1, const std::string& arg2)
 {
     assert((!arg1.empty() && !arg2.empty()) && "Conflicts cannot be created without arguments name.");
     assert((arg1 != arg2) && "An argument cannot be in conflict with itself.");
@@ -329,14 +332,14 @@ void Usage::add_conflict(const std::string& arg1, const std::string& arg2)
     assert((itr1 != m_arguments.end() && itr2 != m_arguments.end()) && "Unknown argument name.");
     assert(((*itr1).second->required() == (*itr2).second->required()) && "All arguments in conflict must be either required or unrequired.");
     // set a conflict for arguments linked by a requirement has no sense
-    assert(!(m_requirements.requires((*itr1).second, (*itr2).second) || m_requirements.requires((*itr2).second, (*itr1).second)) && "Dependent arguments cannot be in conflict.");
+    assert(!(m_requirements.exists((*itr1).second, (*itr2).second, true) || m_requirements.exists((*itr2).second, (*itr1).second, true)) && "Dependent arguments cannot be in conflict.");
     // we must ensure the pair does not already exist for the 2 directions (name, conflict) and (conflict, name)
     assert(!(m_conflicts.in_conflict((*itr1).second, (*itr2).second)) && "Conflict already exists.");
     m_conflicts.add((*itr1).second, (*itr2).second);
     m_syntax_valid = false;
 }
 
-void Usage::remove_conflict(const std::string& arg1, const std::string& arg2)
+void Usage::Usage::remove_conflict(const std::string& arg1, const std::string& arg2)
 {
     auto itr1 = m_arguments.find(arg1);
     auto itr2 = m_arguments.find(arg2);
@@ -347,7 +350,7 @@ void Usage::remove_conflict(const std::string& arg1, const std::string& arg2)
     m_syntax_valid = false;
 }
 
-void Usage::remove_conflicts(const std::string& argument)
+void Usage::Usage::remove_conflicts(const std::string& argument)
 {
     auto itr = m_arguments.find(argument);
     assert(itr != m_arguments.end() && "Unknown argument name.");
@@ -357,20 +360,20 @@ void Usage::remove_conflicts(const std::string& argument)
     m_syntax_valid = false;
 }
 
-void Usage::clear_conflicts() noexcept
+void Usage::Usage::clear_conflicts() noexcept
 {
     m_conflicts.clear();
     m_syntax_valid = false;
 }
 
-bool Usage::in_conflict(const std::string& argument) const
+bool Usage::Usage::in_conflict(const std::string& argument) const
 {
     auto itr = m_arguments.find(argument);
     assert(itr != m_arguments.end() && "Unknown argument name.");
     return m_conflicts.in_conflict((*itr).second);
 }
 
-bool Usage::in_conflict(const std::string& arg1, const std::string& arg2) const
+bool Usage::Usage::in_conflict(const std::string& arg1, const std::string& arg2) const
 {
     auto itr1 = m_arguments.find(arg1);
     auto itr2 = m_arguments.find(arg2);
@@ -378,7 +381,7 @@ bool Usage::in_conflict(const std::string& arg1, const std::string& arg2) const
     return m_conflicts.in_conflict((*itr1).second, (*itr2).second);
 }
 
-Argument* Usage::get_conflict(const std::string& arg1, const std::string& arg2)
+Usage::Argument* Usage::Usage::get_conflict(const std::string& arg1, const std::string& arg2)
 {
     auto itr1 = m_arguments.find(arg1);
     auto itr2 = m_arguments.find(arg2);
@@ -387,7 +390,7 @@ Argument* Usage::get_conflict(const std::string& arg1, const std::string& arg2)
     return (*itr2).second;
 }
 
-std::vector<std::string> Usage::get_conflicts(const std::string& argument) const
+std::vector<std::string> Usage::Usage::get_conflicts(const std::string& argument) const
 {
     auto itr = m_arguments.find(argument);
     assert(itr != m_arguments.end() && "Unknown argument name.");
@@ -398,7 +401,7 @@ std::vector<std::string> Usage::get_conflicts(const std::string& argument) const
     return result;
 }
 
-std::unordered_multimap<std::string, std::string> Usage::get_conflicts() const
+std::unordered_multimap<std::string, std::string> Usage::Usage::get_conflicts() const
 {
     auto conflicts = m_conflicts.get();
     std::unordered_multimap<std::string, std::string> result{};
@@ -411,7 +414,7 @@ std::unordered_multimap<std::string, std::string> Usage::get_conflicts() const
     return result;
 }
 
-void Usage::set_conflicts(const std::unordered_multimap<std::string, std::string>& conflicts)
+void Usage::Usage::set_conflicts(const std::unordered_multimap<std::string, std::string>& conflicts)
 {
     auto itr = conflicts.begin();
     while (itr != conflicts.end())
@@ -422,21 +425,21 @@ void Usage::set_conflicts(const std::unordered_multimap<std::string, std::string
     m_syntax_valid = false;
 }
 
-void Usage::load_from_file(const std::string& fname)
+void Usage::Usage::load_from_file(const std::string& fname)
 {
     m_syntax_valid = true;
 }
 
-void Usage::save_to_file(const std::string& fname) const
+void Usage::Usage::save_to_file(const std::string& fname) const
 {}
 
-void Usage::set_syntax(const std::string& syntax)
+void Usage::Usage::set_syntax(const std::string& syntax)
 {
     m_syntax_string = syntax;
     m_syntax_valid = true;
 }
 
-std::string Usage::set_parameters(int argc, char* argv[])
+std::string Usage::Usage::set_parameters(int argc, char* argv[])
 {
     static const std::string switch_str{ switch_char };
     static const std::string SYNTAX_ERROR{ "Error found in command line argument number %i: '%s' - see %s " + switch_str + help_arg + " for help." };
@@ -458,7 +461,7 @@ std::string Usage::set_parameters(int argc, char* argv[])
         if (named)
             p.erase(0, 1);
         if (p.empty())
-            return get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str(), switch_char, help_arg);
+            return str_utils::get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str(), switch_char, help_arg);
         if (p == help_arg)
             // Help requested
             return "?";
@@ -490,7 +493,7 @@ std::string Usage::set_parameters(int argc, char* argv[])
                     }
                 }
                 if (!found)
-                    return get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
+                    return str_utils::get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
             }
             continue;
         }
@@ -502,7 +505,7 @@ std::string Usage::set_parameters(int argc, char* argv[])
             // TODO format value inside quotes
         }
         if (p.empty())
-            return get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
+            return str_utils::get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
         Argument_Type type_p{ Argument_Type::simple };
         auto colon = p.find(':');
         if (colon != std::string::npos)
@@ -520,7 +523,7 @@ std::string Usage::set_parameters(int argc, char* argv[])
                 type_p = Argument_Type::boolean;
                 p.erase(p.length() - 1);
                 if (!value.empty())
-                    return get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
+                    return str_utils::get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
                 value = "false";
                 if (sgn == '+')
                     value = "true";
@@ -529,12 +532,12 @@ std::string Usage::set_parameters(int argc, char* argv[])
             {
                 // simple argument
                 if (!value.empty())
-                    return get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
+                    return str_utils::get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
                 value = "true";
             }
         }
         if (p.empty())
-            return get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
+            return str_utils::get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
         bool found{ false };
         for (size_t i = 0; i < m_argsorder.size(); i++)
         {
@@ -546,7 +549,7 @@ std::string Usage::set_parameters(int argc, char* argv[])
                 {
                     Argument_Type type_a = dynamic_cast<Named_Arg*>(m_argsorder[i])->type();
                     if (type_p != type_a)
-                        return get_message(TYPE_MISMATCH.c_str(), m_argsorder[i]->name().c_str(),
+                        return str_utils::get_message(TYPE_MISMATCH.c_str(), m_argsorder[i]->name().c_str(),
                             AType_toStr(type_p).c_str(), AType_toStr(type_a).c_str(), program_name.c_str());
                     m_argsorder[i]->value.push_back(value);
                     set_args[i] = true;
@@ -556,7 +559,7 @@ std::string Usage::set_parameters(int argc, char* argv[])
             }
         }
         if (!found)
-            return get_message(UNKNOW_ARGUMENT.c_str(), p.c_str(), program_name.c_str());
+            return str_utils::get_message(UNKNOW_ARGUMENT.c_str(), p.c_str(), program_name.c_str());
     }
     for (size_t i = 0; i < m_argsorder.size(); i++)
     {
@@ -579,7 +582,7 @@ std::string Usage::set_parameters(int argc, char* argv[])
                 }
             }
             if (!con_defined)
-                return get_message(REQUIRED_ARGUMENT.c_str(), m_argsorder[i]->name().c_str(), program_name.c_str());
+                return str_utils::get_message(REQUIRED_ARGUMENT.c_str(), m_argsorder[i]->name().c_str(), program_name.c_str());
         }
         if (!set_args[i] && m_argsorder[i]->named())
         {
@@ -621,9 +624,9 @@ std::string Usage::set_parameters(int argc, char* argv[])
                 if (i != j)
                 {
                     if (set_args[j] && m_conflicts.in_conflict(m_argsorder[i], m_argsorder[j]))
-                        return get_message(CONFLICT.c_str(), m_argsorder[i]->name().c_str(), m_argsorder[j]->name().c_str(), program_name.c_str());
-                    if (!set_args[j] && m_requirements.requires(m_argsorder[i], m_argsorder[j]))
-                        return get_message(REQUIRED_ARGUMENT.c_str(), m_argsorder[j]->name().c_str(), program_name.c_str());
+                        return str_utils::get_message(CONFLICT.c_str(), m_argsorder[i]->name().c_str(), m_argsorder[j]->name().c_str(), program_name.c_str());
+                    if (!set_args[j] && m_requirements.exists(m_argsorder[i], m_argsorder[j], true))
+                        return str_utils::get_message(REQUIRED_ARGUMENT.c_str(), m_argsorder[j]->name().c_str(), program_name.c_str());
                 }
             }
         }
@@ -632,7 +635,7 @@ std::string Usage::set_parameters(int argc, char* argv[])
     return "";
 }
 
-/* void Usage::create_syntax()
+/* void Usage::Usage::create_syntax()
 {
     m_syntax_string = program_name + " ";
     auto reqs = m_requirements.get();
@@ -777,78 +780,81 @@ std::string Usage::set_parameters(int argc, char* argv[])
     m_syntax_valid = true;
 } */
 
-std::ostream& operator<<(std::ostream& os, Usage& us)
+namespace Usage
 {
-    if (!us.syntax_is_valid())
+    std::ostream& operator<<(std::ostream& os, Usage& us)
     {
-        // TODO review with create_syntax
-        // us.create_syntax();
-    }
-    os << us.description << std::endl << std::endl;
-    os << "Syntax:" << std::endl;
-    os << "    " << us.m_syntax_string << std::endl << std::endl;
-    // argsorder is used to list the elements in the same order they were added
-    // do a first pass to determine the max length
-    size_t max_length{ 0 };
-    auto itr = us.m_argsorder.begin();
-    while (itr != us.m_argsorder.end())
-    {
-        auto lgth = (*itr)->name().length();
-        if ((*itr)->named() && dynamic_cast<Named_Arg*>(*itr)->shortcut_char != ' ')
-            lgth += 3;
-        if (lgth > max_length)
-            max_length = lgth;
-        ++itr;
-    }
-    std::string filler{ "" };
-    filler.append(max_length, ' ');
-    itr = us.m_argsorder.begin();
-    while (itr != us.m_argsorder.end())
-    {
-        os << "    " << (*itr)->name();
-        auto lgth = (*itr)->name().length();
-        if ((*itr)->named() && dynamic_cast<Named_Arg*>(*itr)->shortcut_char != ' ')
+        if (!us.syntax_is_valid())
         {
-            os << ", " << dynamic_cast<Named_Arg*>(*itr)->shortcut_char;
-            lgth += 3;
+            // TODO review with create_syntax
+            // us.create_syntax();
         }
-        if (filler.length() > lgth)
+        os << us.description << std::endl << std::endl;
+        os << "Syntax:" << std::endl;
+        os << "    " << us.m_syntax_string << std::endl << std::endl;
+        // argsorder is used to list the elements in the same order they were added
+        // do a first pass to determine the max length
+        size_t max_length{ 0 };
+        auto itr = us.m_argsorder.begin();
+        while (itr != us.m_argsorder.end())
         {
-            std::string fill2{ "" };
-            fill2.append(max_length - lgth, ' ');
-            os << fill2;
+            auto lgth = (*itr)->name().length();
+            if ((*itr)->named() && dynamic_cast<Named_Arg*>(*itr)->shortcut_char != ' ')
+                lgth += 3;
+            if (lgth > max_length)
+                max_length = lgth;
+            ++itr;
         }
-        // display the helpstring with indent
-        std::stringstream ostr;
-        ostr.str((*itr)->helpstring);
-        std::array<char, 255> buf;
-        bool indent{ false };
-        while (ostr.getline(&buf[0], 255, '\n'))
+        std::string filler{ "" };
+        filler.append(max_length, ' ');
+        itr = us.m_argsorder.begin();
+        while (itr != us.m_argsorder.end())
         {
-            if (indent)
-                os << "    " << filler;
-            else
-                indent = true;
-            os << "    " << &buf[0] << std::endl;
-        }
-        if ((*itr)->named())
-        {
-            auto dval = dynamic_cast<Named_Arg*>(*itr)->default_value();
-            if (!dval.empty())
+            os << "    " << (*itr)->name();
+            auto lgth = (*itr)->name().length();
+            if ((*itr)->named() && dynamic_cast<Named_Arg*>(*itr)->shortcut_char != ' ')
             {
-                os << "    " << filler << "    ";
-                if (dval == "\t")
-                    os << "'Tab'";
-                else if (dval == " ")
-                    os << "'Space'";
-                else
-                    os << "'" << dval << "'";
-                os << " by default." << std::endl;
+                os << ", " << dynamic_cast<Named_Arg*>(*itr)->shortcut_char;
+                lgth += 3;
             }
+            if (filler.length() > lgth)
+            {
+                std::string fill2{ "" };
+                fill2.append(max_length - lgth, ' ');
+                os << fill2;
+            }
+            // display the helpstring with indent
+            std::stringstream ostr;
+            ostr.str((*itr)->helpstring);
+            std::array<char, 255> buf;
+            bool indent{ false };
+            while (ostr.getline(&buf[0], 255, '\n'))
+            {
+                if (indent)
+                    os << "    " << filler;
+                else
+                    indent = true;
+                os << "    " << &buf[0] << std::endl;
+            }
+            if ((*itr)->named())
+            {
+                auto dval = dynamic_cast<Named_Arg*>(*itr)->default_value();
+                if (!dval.empty())
+                {
+                    os << "    " << filler << "    ";
+                    if (dval == "\t")
+                        os << "'Tab'";
+                    else if (dval == " ")
+                        os << "'Space'";
+                    else
+                        os << "'" << dval << "'";
+                    os << " by default." << std::endl;
+                }
+            }
+            ++itr;
         }
-        ++itr;
+        os << std::endl;
+        os << us.usage << std::endl;
+        return os;
     }
-    os << std::endl;
-    os << us.usage << std::endl;
-    return os;
 }
