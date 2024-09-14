@@ -267,6 +267,24 @@ namespace Usage
         //void create_syntax();               // TODO
         bool m_syntax_valid{ false };
 
+        // process string that does not start with the switch char
+        bool m_check_unnamed(const std::string& value, std::vector<bool>& set_args, bool& many, size_t& unnamed);
+
+        // checks value type
+        std::string m_check_type(const std::string& p, Argument_Type type_p, const std::string& value, std::vector<bool>& set_args);
+
+        // parse the command line
+        std::string m_parser(int argc, char* argv[], std::vector<bool>& set_args);
+
+        // process requirements
+        void m_check_requirements(size_t arg_index, std::vector<bool>& set_args);
+
+        // process single argument
+        size_t m_check_argument(std::vector<bool>& set_args);
+
+        // check dependencies
+        std::string m_check_dependencies(std::vector<bool>& set_args);
+
     public:
 
 #ifdef _WIN32

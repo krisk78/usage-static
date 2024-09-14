@@ -439,17 +439,68 @@ void Usage::Usage::set_syntax(const std::string& syntax)
     m_syntax_valid = true;
 }
 
-std::string Usage::Usage::set_parameters(int argc, char* argv[])
+bool Usage::Usage::m_check_unnamed(const std::string& value, std::vector<bool>& set_args, bool& many, size_t& unnamed)
+{
+    bool found{ false };
+
+    if (many)
+        m_argsorder[unnamed]->value.push_back(value);
+    else
+    {
+        for (size_t i = 0; i < m_argsorder.size(); i++)
+        {
+            if (!m_argsorder[i]->named() && !set_args[i])
+            {
+                m_argsorder[i]->value.push_back(value);
+                set_args[i] = true;
+                many = dynamic_cast<Unnamed_Arg*>(m_argsorder[i])->many;
+                unnamed = i;
+                found = true;
+                break;
+            }
+        }
+    }
+    return found;
+}
+
+std::string Usage::Usage::m_check_type(const std::string& p, Argument_Type type_p, const std::string& value, std::vector<bool>& set_args)
+{
+    static const std::string switch_str{ switch_char };
+    static const std::string TYPE_MISMATCH{ "Argument '%s' passed as '%s' while expected type is '%s' - see %s " + switch_str + help_arg + " for help." };
+    static const std::string UNKNOW_ARGUMENT{ "Unknown argument '" + switch_str + "%s' - see %s " + switch_str + help_arg + " for help." };
+
+    bool found{ false };
+    for (size_t i = 0; i < m_argsorder.size(); i++)
+    {
+        std::string name2{};
+        if (m_argsorder[i]->named() && !set_args[i])
+        {
+            name2 = dynamic_cast<Named_Arg*>(m_argsorder[i])->shortcut_char;
+            if (p == m_argsorder[i]->name() || p == name2)
+            {
+                Argument_Type type_a = dynamic_cast<Named_Arg*>(m_argsorder[i])->type();
+                if (type_p != type_a)
+                    return str_utils::get_message(TYPE_MISMATCH.c_str(), m_argsorder[i]->name().c_str(),
+                        AType_toStr(type_p).c_str(), AType_toStr(type_a).c_str(), program_name.c_str());
+                m_argsorder[i]->value.push_back(value);
+                set_args[i] = true;
+                found = true;
+                break;
+            }
+        }
+    }
+    if (!found)
+        return str_utils::get_message(UNKNOW_ARGUMENT.c_str(), p.c_str(), program_name.c_str());
+    // All is fine
+    return "";
+}
+
+
+std::string Usage::Usage::m_parser(int argc, char* argv[], std::vector<bool>& set_args)
 {
     static const std::string switch_str{ switch_char };
     static const std::string SYNTAX_ERROR{ "Error found in command line argument number %i: '%s' - see %s " + switch_str + help_arg + " for help." };
-    static const std::string TYPE_MISMATCH{ "Argument '%s' passed as '%s' while expected type is '%s' - see %s " + switch_str + help_arg + " for help." };
-    static const std::string UNKNOW_ARGUMENT{ "Unknown argument '" + switch_str + "%s' - see %s " + switch_str + help_arg + " for help." };
-    static const std::string REQUIRED_ARGUMENT{ "Missing required argument '%s' - see %s " + switch_str + help_arg + " for help." };
-    static const std::string CONFLICT{ "Arguments '%s' and '%s' can't be used together - see %s " + switch_str + help_arg + " for help." };
-    if (argc == 0)
-        return "No argument to evaluate.";
-    std::vector<bool> set_args(m_argsorder.size(), false);
+
     bool many{ false };
     size_t unnamed{ 0 };
     for (size_t i = 1; i < (size_t)argc; i++)
@@ -475,26 +526,8 @@ std::string Usage::Usage::set_parameters(int argc, char* argv[])
             {
                 // TODO format value inside quotes
             }
-            if (many)
-                m_argsorder[unnamed]->value.push_back(value);
-            else
-            {
-                bool found{ false };
-                for (size_t i = 0; i < m_argsorder.size(); i++)
-                {
-                    if (!m_argsorder[i]->named() && !set_args[i])
-                    {
-                        m_argsorder[i]->value.push_back(value);
-                        set_args[i] = true;
-                        many = dynamic_cast<Unnamed_Arg*>(m_argsorder[i])->many;
-                        unnamed = i;
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found)
-                    return str_utils::get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
-            }
+            if (!m_check_unnamed(value, set_args, many, unnamed))
+                return str_utils::get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
             continue;
         }
         many = false;
@@ -538,29 +571,51 @@ std::string Usage::Usage::set_parameters(int argc, char* argv[])
         }
         if (p.empty())
             return str_utils::get_message(SYNTAX_ERROR.c_str(), i, argv[i], program_name.c_str());
-        bool found{ false };
-        for (size_t i = 0; i < m_argsorder.size(); i++)
+        auto ret = m_check_type(p, type_p, value, set_args);
+        if (ret != "")
+            return ret;
+    }
+    // All is fine and values are affected to arguments
+    return "";
+
+}
+
+void Usage::Usage::m_check_requirements(size_t arg_index, std::vector<bool>& set_args)
+{
+    if (!set_args[arg_index] && m_argsorder[arg_index]->named())
+    {
+        auto dval = dynamic_cast<Named_Arg*>(m_argsorder[arg_index])->default_value();
+        if (!dval.empty())
         {
-            std::string name2{};
-            if (m_argsorder[i]->named() && !set_args[i])
+            // default value must be applied only if required args are effectively used
+            auto reqs = m_requirements.requirements(m_argsorder[arg_index]);
+            bool req_defined{ false };
+            if (reqs.empty())
+                req_defined = true;     // always apply default value for non-dependent args
+            for (auto req : reqs)
             {
-                name2 = dynamic_cast<Named_Arg*>(m_argsorder[i])->shortcut_char;
-                if (p == m_argsorder[i]->name() || p == name2)
+                auto itr = std::find(m_argsorder.begin(), m_argsorder.end(), req);
+                if (itr != m_argsorder.end())
                 {
-                    Argument_Type type_a = dynamic_cast<Named_Arg*>(m_argsorder[i])->type();
-                    if (type_p != type_a)
-                        return str_utils::get_message(TYPE_MISMATCH.c_str(), m_argsorder[i]->name().c_str(),
-                            AType_toStr(type_p).c_str(), AType_toStr(type_a).c_str(), program_name.c_str());
-                    m_argsorder[i]->value.push_back(value);
-                    set_args[i] = true;
-                    found = true;
-                    break;
+                    auto j = std::distance(m_argsorder.begin(), itr);
+                    if (set_args[j])
+                    {
+                        req_defined = true;
+                        break;
+                    }
                 }
             }
+            if (req_defined)
+            {
+                m_argsorder[arg_index]->value.push_back(dval);
+                set_args[arg_index] = true;
+            }
         }
-        if (!found)
-            return str_utils::get_message(UNKNOW_ARGUMENT.c_str(), p.c_str(), program_name.c_str());
     }
+}
+
+size_t Usage::Usage::m_check_argument(std::vector<bool>& set_args)
+{
     for (size_t i = 0; i < m_argsorder.size(); i++)
     {
         if (!set_args[i] && m_argsorder[i]->required())
@@ -582,39 +637,23 @@ std::string Usage::Usage::set_parameters(int argc, char* argv[])
                 }
             }
             if (!con_defined)
-                return str_utils::get_message(REQUIRED_ARGUMENT.c_str(), m_argsorder[i]->name().c_str(), program_name.c_str());
+                return i;
         }
-        if (!set_args[i] && m_argsorder[i]->named())
-        {
-            auto dval = dynamic_cast<Named_Arg*>(m_argsorder[i])->default_value();
-            if (!dval.empty())
-            {
-                // default value must be applied only if required args are effectively used
-                auto reqs = m_requirements.requirements(m_argsorder[i]);
-                bool req_defined{ false };
-                if (reqs.empty())
-                    req_defined = true;     // always apply default value for non-dependent args
-                for (auto req : reqs)
-                {
-                    auto itr = std::find(m_argsorder.begin(), m_argsorder.end(), req);
-                    if (itr != m_argsorder.end())
-                    {
-                        auto j = std::distance(m_argsorder.begin(), itr);
-                        if (set_args[j])
-                        {
-                            req_defined = true;
-                            break;
-                        }
-                    }
-                }
-                if (req_defined)
-                {
-                    m_argsorder[i]->value.push_back(dval);
-                    set_args[i] = true;
-                }
-            }
-        }
+        m_check_requirements(i, set_args);
     }
+    // All is fine
+    return -1;
+}
+
+std::string Usage::Usage::m_check_dependencies(std::vector<bool>& set_args)
+{
+    static const std::string switch_str{ switch_char };
+    static const std::string REQUIRED_ARGUMENT{ "Missing required argument '%s' - see %s " + switch_str + help_arg + " for help." };
+    static const std::string CONFLICT{ "Arguments '%s' and '%s' can't be used together - see %s " + switch_str + help_arg + " for help." };
+
+    auto ret = m_check_argument(set_args);
+    if (ret != -1)
+        return str_utils::get_message(REQUIRED_ARGUMENT.c_str(), m_argsorder[ret]->name().c_str(), program_name.c_str());
     for (size_t i = 0; i < m_argsorder.size(); i++)
     {
         if (set_args[i])
@@ -633,6 +672,18 @@ std::string Usage::Usage::set_parameters(int argc, char* argv[])
     }
     // All is fine and values are affected to arguments
     return "";
+}
+
+std::string Usage::Usage::set_parameters(int argc, char* argv[])
+{
+    if (argc == 0)
+        return "No argument to evaluate.";
+    std::vector<bool> set_args(m_argsorder.size(), false);
+    auto ret = m_parser(argc, argv, set_args);
+    if (ret != "")
+        return ret;
+    ret = m_check_dependencies(set_args);
+    return ret;
 }
 
 /* void Usage::Usage::create_syntax()
